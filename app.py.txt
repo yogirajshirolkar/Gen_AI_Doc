@@ -1,0 +1,35 @@
+from dotenv import load_dotenv
+load_dotenv()
+
+import streamlit as st
+from utils import extract_pdf_text, extract_txt_text
+from logic import create_vector_db, generate_challenge_question
+
+st.title("📄 Upload Your Document")
+
+uploaded_file = st.file_uploader("Upload PDF or TXT", type=["pdf", "txt"])
+document_text = ""
+
+if uploaded_file:
+    if uploaded_file.type == "application/pdf":
+        document_text = extract_pdf_text(uploaded_file)
+    else:
+        document_text = extract_txt_text(uploaded_file)
+
+    st.success("Document loaded successfully.")
+    st.text_area("Preview", document_text[:1000], height=200)
+
+    # Create vector DB and get chunks only once
+    vectordb, chunks = create_vector_db(document_text)
+    st.success("Vector DB created (document chunked + embedded).")
+
+    # Show challenge selector and button
+    level = st.selectbox("Choose Difficulty", ["easy", "medium", "hard"])
+    if st.button("Challenge Me", key="challenge_btn"):
+        qa_pair = generate_challenge_question(chunks, level=level)
+        question, answer = qa_pair.split("Answer:") if "Answer:" in qa_pair else (qa_pair, "Answer not generated.")
+        st.subheader("🧠 Question")
+        st.markdown(question.strip())
+
+        with st.expander("💡 Show Answer"):
+            st.markdown(answer.strip())
